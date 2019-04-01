@@ -1,0 +1,184 @@
+%task1
+I=imread('lena.bmp');
+subplot(2,2,1)
+imshow(I);
+title('原始图像');
+new_I=imnoise(I,'gaussian',0,0.01);
+subplot(2,2,2)
+imshow(new_I);
+title('加入高斯噪声后的图像');
+ 
+%滤波模板的选择
+n=3;
+A=fspecial('average',n);
+I1=filter2(A,new_I)/255; 
+I2=medfilt2(new_I,[n,n]);
+subplot(2,2,3)
+imshow(I1);
+title('均值滤波后图像');
+subplot(2,2,4)
+imshow(I2);
+title('中值滤波后图像');
+%task2
+I=imread('lena.bmp');
+figure(1)
+subplot(2,3,1)
+imshow(I);
+title('原始图像');
+new_I=double(imnoise(I,'salt & pepper',0.1));
+subplot(2,3,2)
+imshow(new_I,[]);
+title('加入椒盐噪声后的图像');
+ 
+%滤波模板的选择
+n=3;
+A=fspecial('average',n);
+I1=filter2(A,new_I)/255; 
+I2=medfilt2(new_I,[n,n]);
+subplot(2,3,3)
+imshow(I1);
+title('均值滤波后图像');
+subplot(2,3,4)
+imshow(I2,[]);
+title('中值滤波后图像');
+ 
+%滤波器阶数
+Q1=-1.5;
+Q2=1.5;
+%I3=imfilter(new_I.^(Q+1),fspecial('average',3))./imfilter(new_I.^Q,fspecial('average',3));
+ 
+[M,N]=size(new_I);
+I3= new_I(:,:);
+for x=1+(n-1)/2:1:M-(n-1)/2
+    for y=1+(n-1)/2:1:N-(n-1)/2
+        pI=new_I(x-(n-1)/2:1:x+(n-1)/2,y-(n-1)/2:1:y+(n-1)/2);
+        I3(x,y) = sum(pI(:).^(Q1+1))/sum(pI(:).^(Q1));
+        I4(x,y)=sum(pI(:).^(Q2+1))/sum(pI(:).^(Q2));
+    end
+end
+ 
+subplot(2,3,5);
+imshow(I3,[]);
+title('负阶数逆谐波滤波后图像');
+subplot(2,3,6);
+imshow(I4,[]);
+title('正阶数逆谐波滤波后图像');
+%task3（MATLAB）
+clear all
+clc
+I=imread('lena.bmp');
+H=fspecial('motion',50,45);
+I1=imfilter(I,H,'circular','conv');
+subplot(2,3,1)
+imshow(I);
+title('原始图像');
+f=double(I);
+F=fft2(f);
+F=fftshift(F);
+A=abs(F);
+A=(A-min(min(A)))/(max(max(A))-min(min(A)))*255; 
+subplot(2,3,2);
+imshow(A);
+title('图像的F变换');
+subplot(2,3,3)
+imshow(I1);
+title('运动模糊结果（matlab）');
+I2=imnoise(I1,'gaussian',0,0.01);
+subplot(2,3,4)
+imshow(I2);
+title('加入高斯噪声后的图像');
+noise=imnoise(zeros(size(I)),'gaussian',0,0.01);
+NSR=sum(noise(:).^2)/sum(im2double(I(:)).^2);
+I3=deconvwnr(I2,H,NSR);
+subplot(2,3,5);
+imshow(I3);
+title('维纳滤波结果（matlab）');
+V=0.01;
+NP=V*prod(size(I2));
+I4=deconvreg(I2,H,NP);
+subplot(2,3,6);
+imshow(I4);
+title('最小二乘滤波结果（matlab）');
+%task3（自编）
+clear all
+clc
+I=imread('lena.bmp');
+subplot(2,3,1);
+imshow(I);
+title('原始图像');
+f=double(I);
+F=fft2(f);
+F=fftshift(F);
+A=abs(F);
+A=(A-min(min(A)))/(max(max(A))-min(min(A)))*255; 
+subplot(2,3,2);
+imshow(A);
+title('图像的F变换');
+[P0,Q0]=size(F);
+a=0.1;
+b=0.1;
+T=1;
+K=0.026;
+ 
+for u=1:1:P0
+    for v=1:1:Q0
+        H(u,v)=(T/(pi*(u*a+v*b)))*sin(pi*(u*a+v*b))*exp(-sqrt(-1)*(pi*(u*a+v*b)));
+        G(u,v)=H(u,v)*F(u,v);
+    end
+end
+G=ifftshift(G);
+g=ifft2(G);
+g=256.*g./max(max(g));
+%g=(g-min(min(g)))/(max(max(g))-min(min(g)))*255; 
+g=uint8(real(g));
+subplot(2,3,3);
+imshow(g);
+title('运动模糊结果（自编）');
+ 
+new_I=imnoise(g,'gaussian',0,0.01);
+subplot(2,3,4)
+imshow(new_I);
+title('加入高斯噪声后的图像');
+ 
+ 
+g1=double(new_I);
+G1=fft2(g1);
+G1=fftshift(G1);
+[P1,Q1]=size(G1);
+for u=1:1:P1
+    for v=1:1:Q1
+        F1(u,v)=((1/H(u,v))*(abs(H(u,v)))^2/((abs(H(u,v)))^2+K))*G1(u,v);
+    end
+end
+F1=ifftshift(F1);
+f1=ifft2(F1);
+f1=256.*f1./max(max(f1));
+%f1=(f1-min(min(f1)))/(max(max(f1))-min(min(f1)))*255; 
+f1=uint8(real(f1));
+subplot(2,3,5);
+imshow(f1);
+title('维纳滤波结果（自编）');
+ 
+K2=0.00001;
+g2=double(new_I);
+G2=fft2(g2);
+G2=fftshift(G2);
+[P2,Q2]=size(G2);
+p0=[0 -1 0;-1 4 -1;0 -1 0];
+p=zeros(P2,Q2);
+p(1:3,1:3)=p0;
+P=fft2(p);
+P=fftshift(P);
+%P=psf2otf(p0,[P2,Q2]);
+for u=1:1:P2
+    for v=1:1:Q2
+        F2(u,v)=(1/H(u,v))*(abs(H(u,v)))^2/((abs(H(u,v)))^2+K2*(abs(P(u,v)))^2)*G2(u,v);
+    end
+end
+F2=ifftshift(F2);
+f2=ifft2(F2);
+f2=256.*f2./max(max(f2));
+f2=uint8(real(f2));
+subplot(2,3,6);
+imshow(f2);
+title('最小二乘滤波结果（自编）');
